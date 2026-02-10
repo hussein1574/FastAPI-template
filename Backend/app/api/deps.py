@@ -1,0 +1,45 @@
+from typing import Annotated
+from fastapi import Depends
+from app.core.exceptions import UnauthorizedException
+from app.core.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.repositories.user_repo import UserRepository
+from app.repositories.token_repo import TokenRepository
+from app.services.user_service import UserService
+from app.services.auth_service import AuthService
+from app.core.security import decode_access_token
+from fastapi.security import OAuth2PasswordBearer
+
+db_dependency = Annotated[AsyncSession, Depends(get_db)]
+reusable_oauth2 = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+async def get_user_repo(db: db_dependency)-> UserRepository:
+    return UserRepository(db)
+
+user_dependency = Annotated[UserRepository, Depends(get_user_repo)]
+
+async def get_user_service(user_repo: user_dependency) -> UserService:
+    return UserService(user_repo)
+
+
+async def get_token_repo(db: db_dependency) -> TokenRepository:
+    return TokenRepository(db)
+
+token_dependency = Annotated[TokenRepository, Depends(get_token_repo)]
+
+async def get_auth_service(user_repo: user_dependency, token_repo: token_dependency) -> AuthService:
+    return AuthService(user_repo, token_repo)
+
+
+async def get_current_user(token: Annotated[str, Depends(reusable_oauth2)], user_repo: user_dependency):
+    payload = decode_access_token(token)
+    subject = payload.sub
+    if not subject:
+        
+        raise UnauthorizedException(detail="Unauthorized User")
+    user = await user_repo.get_by_id(subject)
+    if not user:
+        raise UnauthorizedException(detail="Unauthorized User")
+    return user
+
+
