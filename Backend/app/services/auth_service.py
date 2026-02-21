@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 from app.core.exceptions import UnauthorizedException
 from app.models.token import RefreshToken
 from app.repositories.user_repo import UserRepository
@@ -67,7 +68,7 @@ class AuthService:
 
         new_db_token = RefreshToken(
             token=new_refresh_token, 
-            user_id=int(subject),
+            user_id=UUID(subject),
             expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
         )
         await self.token_repo.create(new_db_token)

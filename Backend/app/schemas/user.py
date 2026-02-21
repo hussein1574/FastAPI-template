@@ -1,3 +1,4 @@
+from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 class UserBase(BaseModel):
@@ -48,6 +49,6 @@ class UserUpdate(BaseModel):
         return value    
 
 class UserResponse(UserBase):
-    id: int
+    id: UUID
 
     model_config= ConfigDict(from_attributes=True)

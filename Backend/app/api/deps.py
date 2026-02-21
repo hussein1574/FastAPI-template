@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 from fastapi import Depends
 from app.core.exceptions import UnauthorizedException
 from app.core.database import get_db
@@ -35,9 +36,12 @@ async def get_current_user(token: Annotated[str, Depends(reusable_oauth2)], user
     payload = decode_access_token(token)
     subject = payload.sub
     if not subject:
-        
         raise UnauthorizedException(detail="Unauthorized User")
-    user = await user_repo.get_by_id(subject)
+    try:
+        user_id = UUID(subject)
+    except ValueError:
+        raise UnauthorizedException(detail="Unauthorized User")
+    user = await user_repo.get_by_id(user_id)
     if not user:
         raise UnauthorizedException(detail="Unauthorized User")
     return user

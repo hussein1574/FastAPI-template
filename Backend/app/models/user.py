@@ -1,11 +1,12 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String
 from app.core.database import Base
+from uuid import UUID, uuid4
 
 class User(Base):
     __tablename__ = "users"
-    
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4, index=True)
     email: Mapped[str] = mapped_column(String, unique=True, index=True)
     username: Mapped[str] = mapped_column(String, unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String)
