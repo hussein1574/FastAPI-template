@@ -1,3 +1,5 @@
+import hashlib
+
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union
@@ -37,3 +39,6 @@ def decode_access_token(token: str) -> TokenPayload:
         return TokenPayload(**payload)
     except JWTError:
         raise UnauthorizedException(detail="Could not validate credentials.")
+    
+def hash_token(token: str)-> str:
+    return hashlib.sha256(token.encode()).hexdigest()

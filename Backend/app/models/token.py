@@ -8,7 +8,7 @@ class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
     
     id: Mapped[UUID] = mapped_column(primary_key=True,  index=True, default=uuid4)
-    token: Mapped[str] = mapped_column(String, unique=True, index=True)
+    token_hash: Mapped[str] = mapped_column(String, unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from Backend.app.core.security import hash_token
 from app.models.token import RefreshToken
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +19,7 @@ class TokenRepository:
         return token
     
     async def get_by_token(self, token: str, for_update: bool = False) -> RefreshToken | None:
-        query = select(RefreshToken).where(RefreshToken.token == token)
+        query = select(RefreshToken).where(RefreshToken.token_hash == hash_token(token))
         if for_update:
             query = query.with_for_update()
         result = await self.db.execute(query)
@@ -26,7 +27,7 @@ class TokenRepository:
     
     async def revoke_token(self, token: str) -> bool:
         stored = await self.get_by_token(token, for_update=True)
-        if stored:
+        if stored and not stored.revoked:
             stored.revoked = True
             await self.db.flush()
             return True
