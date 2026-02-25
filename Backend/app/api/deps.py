@@ -6,8 +6,10 @@ from app.core.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.user_repo import UserRepository
 from app.repositories.token_repo import TokenRepository
+from app.repositories.password_reset_repo import PasswordResetRepository
 from app.services.user_service import UserService
 from app.services.auth_service import AuthService
+from app.services.password_reset_service import PasswordResetService
 from app.core.security import decode_access_token
 from fastapi.security import OAuth2PasswordBearer
 
@@ -30,6 +32,19 @@ token_dependency = Annotated[TokenRepository, Depends(get_token_repo)]
 
 async def get_auth_service(user_repo: user_dependency, token_repo: token_dependency) -> AuthService:
     return AuthService(user_repo, token_repo)
+
+
+async def get_password_reset_repo(db: db_dependency) -> PasswordResetRepository:
+    return PasswordResetRepository(db)
+
+password_reset_dependency = Annotated[PasswordResetRepository, Depends(get_password_reset_repo)]
+
+async def get_password_reset_service(
+    user_repo: user_dependency,
+    password_reset_repo: password_reset_dependency,
+    token_repo: token_dependency,
+) -> PasswordResetService:
+    return PasswordResetService(user_repo, password_reset_repo, token_repo)
 
 
 async def get_current_user(token: Annotated[str, Depends(reusable_oauth2)], user_repo: user_dependency):

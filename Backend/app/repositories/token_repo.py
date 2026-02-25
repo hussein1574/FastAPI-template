@@ -1,5 +1,5 @@
-from sqlalchemy import select
-from Backend.app.core.security import hash_token
+from sqlalchemy import select, update
+from app.core.security import hash_token
 from app.models.token import RefreshToken
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,7 +33,14 @@ class TokenRepository:
             return True
         return False
 
-
-    
-
-
+    async def revoke_all_for_user(self, user_id) -> None:
+        stmt = (
+            update(RefreshToken)
+            .where(
+                RefreshToken.user_id == user_id,
+                RefreshToken.revoked == False,
+            )
+            .values(revoked=True)
+        )
+        await self.db.execute(stmt)
+        await self.db.flush()

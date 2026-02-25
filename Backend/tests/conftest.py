@@ -4,6 +4,7 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.core.database import Base, get_db
 from app.main import app
+from app.api.v1.auth import limiter as auth_limiter
 
 # In-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -35,6 +36,10 @@ async def override_get_db():
             raise
 
 app.dependency_overrides[get_db] = override_get_db
+
+# Disable rate limiting during tests
+app.state.limiter.enabled = False
+auth_limiter.enabled = False
 
 @pytest.fixture
 async def client():
