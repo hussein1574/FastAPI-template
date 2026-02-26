@@ -1,7 +1,6 @@
 import pytest
-import asyncio
 from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from app.core.database import Base, get_db
 from app.main import app
 from app.api.v1.auth import limiter as auth_limiter
@@ -9,40 +8,61 @@ from app.api.v1.auth import limiter as auth_limiter
 # In-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-TestSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-
+# Fixture to create the database engine and setup/teardown tables for the test session
 @pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.get_event_loop()
-    yield loop
-    loop.close()
-
-@pytest.fixture(autouse=True)
-async def setup_db():
+async def db_engine():
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+    # Create tables once for the entire test session
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    yield
+    yield engine
+    # Drop tables and dispose engine after test session
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
 
-async def override_get_db():
-    async with TestSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+# Fixture to provide a database session for each test, with transaction rollback for isolation
+@pytest.fixture(scope="function")
+async def db_session(db_engine):
+    connection = await db_engine.connect()
+    # Start a transaction for test isolation
+    transaction = await connection.begin()
+    
+    # Create a new session bound to the connection
+    session = AsyncSession(bind=connection, expire_on_commit=False)
+    
+    yield session
+    
+    # Rollback transaction and close session after test
+    await session.close()
+    await transaction.rollback()
+    await connection.close()
 
-app.dependency_overrides[get_db] = override_get_db
+@pytest.fixture(scope="function", autouse=True)
+def setup_app_dependencies(db_session):
+    # Override get_db dependency so that it uses the test database session
+    app.dependency_overrides[get_db] = lambda: db_session
+    
+    # Store original limiter states to restore after test
+    original_app_limiter = getattr(app.state, "limiter", None)
+    original_auth_limiter = auth_limiter.enabled
+    
+    # Disable rate limiting for tests to avoid interference
+    if original_app_limiter:
+        app.state.limiter.enabled = False
+    auth_limiter.enabled = False
+    
+    yield 
+    
+    # Cleanup after test
+    app.dependency_overrides.clear()
+    if original_app_limiter:
+        app.state.limiter.enabled = original_app_limiter.enabled
+    auth_limiter.enabled = original_auth_limiter
 
-# Disable rate limiting during tests
-app.state.limiter.enabled = False
-auth_limiter.enabled = False
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 async def client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac  
+        yield ac
