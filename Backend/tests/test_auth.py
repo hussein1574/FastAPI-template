@@ -16,6 +16,7 @@ async def test_register_user(client):
     data = response.json()
     assert data["email"] == "test@test.com"
     assert data["username"] == "testuser"
+    assert data["role"] == "user"
     assert "id" in data
 
 

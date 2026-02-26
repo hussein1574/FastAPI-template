@@ -24,7 +24,7 @@ class PasswordResetService:
         self.password_reset_repo = password_reset_repo
         self.token_repo = token_repo
 
-    async def request_reset(self, email: str) -> str | None:
+    async def request_reset(self, email: str, ip_address: str | None = None, user_agent: str | None = None) -> str | None:
         """
         Generate a password reset token for the given email.
         Returns the raw token string if the user exists, None otherwise.
@@ -49,6 +49,8 @@ class PasswordResetService:
             user_id=user.id,
             expires_at=datetime.now(timezone.utc)
             + timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES),
+            ip_address=ip_address,
+            user_agent=user_agent,
         )
 
         await self.password_reset_repo.create(reset_token)

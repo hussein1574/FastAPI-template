@@ -20,7 +20,7 @@ class AuthService:
         self.token_repo = token_repo
 
 
-    async def login(self ,identifier: str, password: str) -> TokenResponse:
+    async def login(self ,identifier: str, password: str, ip_address: str | None = None, user_agent: str | None = None) -> TokenResponse:
         settings = get_settings()
         user = await self.user_repo.get_by_email_or_username(identifier)
         if not user:
@@ -34,13 +34,14 @@ class AuthService:
         refresh_token_str = create_refresh_token(user.id)
         refresh_token_hash = hash_token(refresh_token_str)
         db_token = RefreshToken(token_hash = refresh_token_hash, user_id=user.id, expires_at= datetime.now(timezone.utc) + 
-                             timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS))
+                             timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+                             ip_address=ip_address, user_agent=user_agent)
         await self.token_repo.create(db_token)
         logger.info("Tokens created and stored for user_id=%s", user.id)
         return TokenResponse(access_token=access_token_str, refresh_token= refresh_token_str, token_type="bearer")
 
 
-    async def refresh_access_token(self, refresh_token: str) -> TokenResponse:
+    async def refresh_access_token(self, refresh_token: str, ip_address: str | None = None, user_agent: str | None = None) -> TokenResponse:
         settings = get_settings()
         try:
             payload = jwt.decode(refresh_token,settings.SECRET_KEY,[ settings.ALGORITHM])
@@ -69,7 +70,9 @@ class AuthService:
         new_db_token = RefreshToken(
             token_hash=new_refresh_token_hash,
             user_id=UUID(subject),
-            expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+            expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+            ip_address=ip_address,
+            user_agent=user_agent,
         )
 
         logger.info("Refresh token valid and The new tokens are being created for user_id=%s", subject)

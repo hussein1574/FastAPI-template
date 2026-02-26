@@ -10,7 +10,6 @@ class EnumBase(Enum):
 
 
 class UserRole(EnumBase):
-    OWNER = 'owner'
-    EDITOR = 'editor'
-    VIEWER = 'viewer'
+    ADMIN = 'admin'
+    USER = 'user'
 
