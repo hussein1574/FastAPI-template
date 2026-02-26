@@ -1,3 +1,4 @@
+from app.core.database import AsyncSessionLocal
 from fastapi import FastAPI
 from app.core.config import get_settings
 from app.api.api_v1 import user_router, auth_router
@@ -22,7 +23,8 @@ async def lifespan(app: FastAPI):
     async def periodic_cleanup():
         while True:
             await asyncio.sleep(86400) # every 24 hours
-            await cleanup_expired_tokens()
+            async with AsyncSessionLocal() as session:
+                await cleanup_expired_tokens(session)
     task = asyncio.create_task(periodic_cleanup())
     yield
     # Shutdown code
